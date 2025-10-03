@@ -80,6 +80,26 @@ void StateScriptState::OnEnter(Context &ctx, sm::EventPoster<StateEvent> &poster
 				poster.PostEvent(StateEvent::Failure);
 				return;
 			}
+      try {
+        deployments::DeploymentStatus status;
+        if (state_name == "DownloadEnter") status = deployments::DeploymentStatus::Downloading;
+        if (state_name == "DownloadLeave") status = deployments::DeploymentStatus::Installing;
+        if (state_name == "ArtifactInstallEnter") status = deployments::DeploymentStatus::Installing;
+        else return;
+        string substatus = "Executing " + state_name + " script";
+        if (!ctx.deployment_client) return;
+        if (!ctx.deployment.state_data) return;
+        auto error = ctx.deployment_client->PushStatus(
+                                                       ctx.deployment.state_data->update_info.id,
+                                                       status,
+                                                       substatus,
+                                                       ctx.http_client,
+                                                       [=](error::Error error){
+                                                         log::Error("Couldn't update state script execution status");
+                                                       });
+      }
+      catch (...) {
+      }
 			log::Debug("Successfully ran the " + state_name + " State Scripts...");
 			poster.PostEvent(StateEvent::Success);
 		},
